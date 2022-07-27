@@ -116,7 +116,7 @@ FRA <- function(dat, outcome_cols = c('Y'),
   }
   
   # For each outcome/treatment pair, create column for influence function of the form
-  # 1 / prob(treatment) * (Y - E[Y|X,treatment]) * 1{treatment} + E[Y|treatment]
+  # 1 / prob(treatment) * (Y - E[Y|X,treatment]) * 1{treatment} + E[Y|X,treatment]
   for (treat in treat_levels) {
     prop_treat <- mean(dat[,treat_col] == treat)
     for (y in outcome_cols) {
