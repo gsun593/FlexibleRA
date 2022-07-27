@@ -5,7 +5,7 @@ R Functions to Perform Flexible Regression Adjustment
 Contains the following functions and a simulation example
 
 
-
+```
 Perform Flexible Regression Adjustment Pre-Processing
 FRA(dat, outcome_cols, treat_col, covariate_cols, n_folds, method)
 Inputs:
@@ -54,3 +54,4 @@ Inputs:
   are the inputs into param_func
 Output:
   Vector with point estimate and standard error
+```
