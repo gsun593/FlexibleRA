@@ -33,13 +33,16 @@ FRA <- function(dat, outcome_cols = c('Y'),
                      method = '',
                      ML_func = NULL) {
   # Split sample to ensure balance in treatment status across samples
+  dat <- dat %>% as.data.frame
   dat$order <- sample(1:nrow(dat), nrow(dat))
   dat <- dat %>% arrange(!!sym(treat_col), order)
-  dat$fold <- 1:n_folds
+  fold_col <- rep(1:n_folds, ceiling(nrow(dat) / n_folds))
+  fold_col <- fold_col[1:nrow(dat)] 
+  dat$fold <- fold_col
   
   # Get unique treatment levels
-  treat_levels <- unique(dat[,treat_col])
-  
+  treat_levels <- unique(dat[,treat_col]) %>% as.vector
+
   
   # Perform Crossfitting
   # Split out by method
@@ -86,7 +89,7 @@ FRA <- function(dat, outcome_cols = c('Y'),
           # Fit gradient boosting machine model using data from folds except current fold
           gbmMod <- gbm(formula(paste(y, '~', paste(covariate_cols, collapse = '+'))),
                                 dat %>% filter(f != fold, !!sym(treat_col) == treat),
-                       interaction.depth = 2, n.trees = 1000,
+                       interaction.depth = 2, n.trees = 300, shrinkage = 0.01,
                        distribution = 'gaussian')
           # Project fitted values based on covariates of current fold
           dat[dat$fold == f,paste('m_', y, '_', treat, sep = '')] <- predict(gbmMod, dat %>%
@@ -210,6 +213,55 @@ FRA_theta <- function(param_func, dat_with_FRA, outcome_treats) {
 #####
 
 
+
+# Data Analysis Example
+dat <- read_csv('dat_for_RA.csv') %>% na.omit
+
+
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 3)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'rf', n_folds = 2)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+
+dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+
+dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+
+
+
+FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
+FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
+
+(FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
+
+
+FRA_ATE(dat_with_FRA, outcome_col = 'D', treat_lvl = 1, ctrl_lvl = 0)
+FRA_ATE(dat_with_LRA, outcome_col = 'D', treat_lvl = 1, ctrl_lvl = 0)
+
+
+dat %>% summarise(
+  pe_rf = mean(Y[W==1]) - mean(Y[W==0]),
+  se_rf = sqrt(var(Y[W==1]) / sum(W==1) + var(Y[W==0])/sum(W==0)),
+  pe_fs = mean(D[W==1]) - mean(D[W==0]),
+  se_fs = sqrt(var(D[W==1]) / sum(W==1) + var(D[W==0])/sum(W==0)))
+
+
+FRA_LATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
+FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
+dat %>% felm(Y~1|0|(D~W), data = .) %>%
+  summary
+
+
+(FRA_LATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/
+FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
+
+dat %>% summarise(m_n = mean())
+
+dat %>% felm(formula(paste('Y~', paste(covariate_cols,collapse='+'),'|0|(D~W)')), data = .) %>%
+  summary
+
 # Simulation example
 #####
 # Covariates X1,X2,X3 and error term jointly determine treatment status (D) and
@@ -238,6 +290,13 @@ dat %>% group_by(W) %>%
 # Apply regression adjustment pre-processing
 dat_with_FRA <- FRA(dat, outcome_cols = c('Y', 'D'), method = 'rf')
 dat_with_LRA <- FRA(dat, outcome_cols = c('Y', 'D'), method = 'linear')
+
+
+dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+
+dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
 
 # Compare FRA_theta with FRA_ATE estimates of average intent-to-treat effect
 FRA_theta(function(x) (x[1] - x[2]) , dat_with_FRA, c('Y_1', 'Y_0'))
