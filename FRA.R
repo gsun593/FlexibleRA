@@ -31,13 +31,13 @@ FRA <- function(dat, outcome_cols = c('Y'),
                      covariate_cols = c('X1', 'X2', 'X3'),
                      n_folds = 2,
                      method = '',
-                     ML_func = NULL) {
+                     ML_func = NULL, num_trees = 300) {
   # Split sample to ensure balance in treatment status across samples
   dat <- dat %>% as.data.frame
   dat$order <- sample(1:nrow(dat), nrow(dat))
   dat <- dat %>% arrange(!!sym(treat_col), order)
   fold_col <- rep(1:n_folds, ceiling(nrow(dat) / n_folds))
-  fold_col <- fold_col[1:nrow(dat)] 
+  fold_col <- fold_col[1:nrow(dat)]
   dat$fold <- fold_col
   
   # Get unique treatment levels
@@ -89,7 +89,7 @@ FRA <- function(dat, outcome_cols = c('Y'),
           # Fit gradient boosting machine model using data from folds except current fold
           gbmMod <- gbm(formula(paste(y, '~', paste(covariate_cols, collapse = '+'))),
                                 dat %>% filter(f != fold, !!sym(treat_col) == treat),
-                       interaction.depth = 2, n.trees = 300, shrinkage = 0.01,
+                       interaction.depth = 2, n.trees = num_trees, shrinkage = 0.05,
                        distribution = 'gaussian')
           # Project fitted values based on covariates of current fold
           dat[dat$fold == f,paste('m_', y, '_', treat, sep = '')] <- predict(gbmMod, dat %>%
@@ -213,13 +213,99 @@ FRA_theta <- function(param_func, dat_with_FRA, outcome_treats) {
 #####
 
 
+# Ferraro Price
+#####
+set.seed(326)
 
-# Data Analysis Example
-dat <- read_csv('dat_for_RA.csv') %>% na.omit
+# Unlogged Everything
+dat <- read_csv('dat_for_RA_ferraroprice.csv') %>% na.omit %>% filter(Y < 200)
+dat$Y %>% hist
+hist(dat$Y)
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
+
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+                    num_trees = 600)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+
+dat %>% summarise(
+  pe = mean(Y[W==3]) - mean(Y[W==4]),
+  se = sqrt(var(Y[W==3]) / sum(W==3) + var(Y[W==3])/sum(W==3)))
+
+
+# Logged Outcome Only
+dat <- read_csv('dat_for_RA_ferraroprice.csv') %>% na.omit %>% filter(Y < 200)
+dat$Y %>% hist
+dat$Y <- log(dat$Y + 1)
+hist(dat$Y)
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
+
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+                    num_trees = 600)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+
+dat %>% summarise(
+  pe = mean(Y[W==3]) - mean(Y[W==4]),
+  se = sqrt(var(Y[W==3]) / sum(W==3) + var(Y[W==3])/sum(W==3)))
+
+
+# Logged Everything
+dat <- read_csv('dat_for_RA_ferraroprice_logged.csv') %>% na.omit %>% filter(Y < 200)
+dat$Y %>% hist
+dat$Y <- log(dat$Y + 1)
+hist(dat$Y)
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
+
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+                    num_trees = 600)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
+
+dat %>% summarise(
+  pe = mean(Y[W==3]) - mean(Y[W==4]),
+  se = sqrt(var(Y[W==3]) / sum(W==3) + var(Y[W==3])/sum(W==3)))
+#####
+
+# CHECC
+#####
+dat <- read_csv('dat_for_RA_CHECC.csv')
+dat$hl <- as.factor(dat$hl)
+
+set.seed(161)
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'rf', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+
+dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+
+dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+
+
+FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
+FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
+
+dat %>% group_by(W) %>% summarise(m = mean(Y), v = var(Y) / n()) %>%
+  summarise(pe = mean(m[W==1]) - mean(m[W==0]), se = sqrt(mean(v[W==1]) + mean(v[W==0])))
+#####
+
+# OHIE
+#####
+dat <- read_csv('dat_for_RA_OHIE.csv') %>% na.omit
 
 
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 3)
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'rf', n_folds = 2)
+set.seed(623)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'rf', n_folds = 3)
 dat_with_LRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 
@@ -257,10 +343,10 @@ dat %>% felm(Y~1|0|(D~W), data = .) %>%
 (FRA_LATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/
 FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
 
-dat %>% summarise(m_n = mean())
-
 dat %>% felm(formula(paste('Y~', paste(covariate_cols,collapse='+'),'|0|(D~W)')), data = .) %>%
   summary
+#####
+
 
 # Simulation example
 #####
@@ -311,4 +397,7 @@ FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
 FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
 #####
 
+
+all_dat %>% filter(year == 2013) %>% mutate(W=treatment!='control') %>% group_by(W) %>%
+  summarise(mean(has_cog_ao_y2))
 
