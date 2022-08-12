@@ -2,7 +2,8 @@ library(dplyr)
 library(gbm)
 library(randomForest)
 library(numDeriv)
-
+library(ggplot2)
+library(readr)
 
 
 # Perform Flexible Regression Adjustment Pre-Processing
@@ -90,7 +91,7 @@ FRA <- function(dat, outcome_cols = c('Y'),
           gbmMod <- gbm(formula(paste(y, '~', paste(covariate_cols, collapse = '+'))),
                                 dat %>% filter(f != fold, !!sym(treat_col) == treat),
                        interaction.depth = 2, n.trees = num_trees, shrinkage = 0.05,
-                       distribution = 'gaussian')
+                       distribution = 'gaussian', verbose = F)
           # Project fitted values based on covariates of current fold
           dat[dat$fold == f,paste('m_', y, '_', treat, sep = '')] <- predict(gbmMod, dat %>%
                                                                                filter(fold == f))
@@ -213,6 +214,31 @@ FRA_theta <- function(param_func, dat_with_FRA, outcome_treats) {
 #####
 
 
+
+# GOTV
+#####
+data(GerberGreenImai)
+dat <- GerberGreenImai
+rm(GerberGreenImai)
+dat <- dat %>% mutate(Y = VOTED98, W = APPEAL) %>%
+  select(Y,W,WARD, AGE, MAJORPTY, VOTE96.0, VOTE96.1, NEW)
+dat$WARD <- as.factor(dat$WARD)
+
+set.seed(6124)
+covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'rf', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+
+
+FRA_ATE(dat_with_FRA, treat_lvl = 3, ctrl_lvl = 1)
+FRA_ATE(dat_with_LRA, treat_lvl = 3, ctrl_lvl = 1)
+
+dat %>% group_by(W) %>% summarise(m = mean(Y), v = var(Y) / n()) %>%
+  summarise(pe = mean(m[W==3]) - mean(m[W==1]), se = sqrt(mean(v[W==3]) + mean(v[W==1])))
+#####
+
 # Ferraro Price
 #####
 set.seed(326)
@@ -223,9 +249,11 @@ dat$Y %>% hist
 hist(dat$Y)
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
 
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
                     num_trees = 600)
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
 FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
@@ -242,9 +270,11 @@ dat$Y <- log(dat$Y + 1)
 hist(dat$Y)
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
 
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
                     num_trees = 600)
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
 FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
@@ -261,9 +291,11 @@ dat$Y <- log(dat$Y + 1)
 hist(dat$Y)
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
 
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'gbm', n_folds = 3,
                     num_trees = 600)
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 FRA_ATE(dat_with_FRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
 FRA_ATE(dat_with_LRA, outcome_col = 'Y', treat_lvl = 3, ctrl_lvl = 4)
@@ -280,22 +312,29 @@ dat$hl <- as.factor(dat$hl)
 
 set.seed(161)
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 2)
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'rf', n_folds = 10)
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'rf', n_folds = 10)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 
-dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+dat_with_FRA %>% filter(W == 0) %>%
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_FRA %>% filter(W == 1) %>%
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
 
-dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+dat_with_LRA %>% filter(W == 0) %>%
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_LRA %>% filter(W == 1) %>%
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
 
 
 FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
 FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
 
 dat %>% group_by(W) %>% summarise(m = mean(Y), v = var(Y) / n()) %>%
-  summarise(pe = mean(m[W==1]) - mean(m[W==0]), se = sqrt(mean(v[W==1]) + mean(v[W==0])))
+  summarise(pe = mean(m[W==1]) - mean(m[W==0]),
+            se = sqrt(mean(v[W==1]) + mean(v[W==0])))
 #####
 
 # OHIE
@@ -305,22 +344,29 @@ dat <- read_csv('dat_for_RA_OHIE.csv') %>% na.omit
 
 covariate_cols <- dat %>% colnames %>% tail(ncol(dat) - 3)
 set.seed(623)
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'rf', n_folds = 3)
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y','D'), covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y','D'),
+                    covariate_cols = covariate_cols, method = 'rf', n_folds = 3)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y','D'),
+                    covariate_cols = covariate_cols, method = 'linear', n_folds = 10)
 
 
-dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+dat_with_FRA %>% filter(W == 0) %>% 
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_FRA %>% filter(W == 1) %>% 
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
 
-dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+dat_with_LRA %>% filter(W == 0) %>% 
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
+dat_with_LRA %>% filter(W == 1) %>% 
+  summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
 
 
 
 FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
 FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
 
-(FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
+(FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/
+    FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
 
 
 FRA_ATE(dat_with_FRA, outcome_col = 'D', treat_lvl = 1, ctrl_lvl = 0)
@@ -343,61 +389,108 @@ dat %>% felm(Y~1|0|(D~W), data = .) %>%
 (FRA_LATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[2]/
 FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)[2])^2
 
-dat %>% felm(formula(paste('Y~', paste(covariate_cols,collapse='+'),'|0|(D~W)')), data = .) %>%
+dat %>%
+  felm(formula(paste('Y~',paste(covariate_cols,collapse='+'),'|0|(D~W)')),
+       data = .) %>%
   summary
 #####
 
 
+
+
+
 # Simulation example
 #####
-# Covariates X1,X2,X3 and error term jointly determine treatment status (D) and
-# outcome (Y)
-W <- sample(c(0,1,2), 10000, replace = T)
-X1 <- rnorm(10000, 0, 3)
-X2 <- rnorm(10000, 0, 3)
-X3 <- rnorm(10000, 0, 3)
-U <- rnorm(10000)
-# D <- (W - 1 > U + (X1 + X2 + cos(X3)) / 10)
-D <- (W - 1 > U + (X1 + X2 + X3) / 10)
-
-# Y <- pmin(exp((2 * D + sin(X1) + X2 * X3^2 / 10 + U) / 10),3)
-Y <- exp((2 * D + X1 + 2*X2 - X3 + U) / 10)
-
-dat <- data.frame(W = W, X1 = X1, X2 = X2, X3 = X3, Y = Y, D = D)
+# Latent variables L1, L2, L3
 
 
-# Subsample means estimates of potential outcome means with standard errors
-dat %>% group_by(W) %>%
-  summarise(mean_Y = mean(Y), se_Y = sd(Y) / sqrt(n()),
-            mean_D = mean(D),
-            se_D = sd(D) / sqrt(n()))
+get_pe <- function(p, interaction,N = 1000, method = 'rf') {
+  W <- sample(c(0,1), N, replace = T)
+  L1 <- runif(N, 0, 1)
+  L2 <- runif(N, 0, 1)
+  L3 <- runif(N, 0, 1)
+  if(interaction == 1) {
+    X1 <- (L1 * L2)^p
+    X2 <- (L2 * L3)^p
+    X3 <- (L3 * L1)^p
+  } else {
+    X1 <- L1^p
+    X2 <- L2^p
+    X3 <- L3^p
+  }
+  U <- rnorm(N, 0, 0.5)
+  
+  Y <- L1 + L2 + L3 + W + U
+  
+  dat <- data.frame(W = W, X1 = X1, X2 = X2, X3 = X3, Y = Y)
+  
+  
+  
+  # Apply regression adjustment pre-processing
+  dat_with_FRA <- FRA(dat, outcome_cols = c('Y'), method = method, n_folds = 5)
 
+  
+  # Compare FRA_theta with FRA_ATE estimates of average effect
+  FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)[1]
+}
+
+
+set.seed(216)
+for (p in c(1, 5,10)) {
+  for (interaction in c(0,1)) {
+    fits_ml <- sapply(1:100, function(x) get_pe(p,interaction, method = 'rf'))
+    fits_linear <- sapply(1:100, function(x) get_pe(p,interaction, method = 'linear'))
+    print(c(p,interaction, sd(fits_ml) / sd(fits_linear)))
+  }
+}
+
+
+N <- 1000
+p <- 1
+interaction = 1
+
+W <- sample(c(0,1), N, replace = T)
+L1 <- runif(N, 0, 1)
+L2 <- runif(N, 0, 1)
+L3 <- runif(N, 0, 1)
+if(interaction == 1) {
+  X1 <- (L1 * L2)^p
+  X2 <- (L2 * L3)^p
+  X3 <- (L3 * L1)^p
+} else {
+  X1 <- L1^p
+  X2 <- L2^p
+  X3 <- L3^p
+}
+U <- rnorm(N, 0, 0.5)
+
+Y <- L1 + L2 + L3 + W + U
+
+dat <- data.frame(W = W, X1 = X1, X2 = X2, X3 = X3, L1 = L1, L2 = L2, L3 = L3, Y = Y)
 
 # Apply regression adjustment pre-processing
-dat_with_FRA <- FRA(dat, outcome_cols = c('Y', 'D'), method = 'rf')
-dat_with_LRA <- FRA(dat, outcome_cols = c('Y', 'D'), method = 'linear')
+dat_with_FRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = c('X1', 'X2', 'X3'), method = 'rf',n_folds = 5)
+dat_with_LRA <- FRA(dat, outcome_cols = c('Y'),
+                    covariate_cols = c('X1', 'X2', 'X3'), method = 'linear',n_folds=5)
 
 
-dat_with_FRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_FRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+# Produce plots to show model fit
+dat_with_FRA %>% filter(W == 0) %>% mutate(truth = L1 + L2 + L3) %>%  ggplot + 
+  geom_point(aes(x=truth,y=m_Y_0, col = 'CEF')) +
+  geom_point(aes(x=truth, y = Y, col = 'Actual Data')) +
+  geom_abline(aes(slope = 1,intercept=0)) + labs(x = 'E[Y|X]', y = 'Fit', title = 'Flexible RA') +
+  scale_color_discrete(name = 'Type')
 
-dat_with_LRA %>% filter(W == 0) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_0)^2)))
-dat_with_LRA %>% filter(W == 1) %>% summarise(Y_sd_0 = sd(Y), rmse_0 = sqrt(mean((Y-m_Y_1)^2)))
+dat_with_LRA %>% filter(W == 0) %>% mutate(truth = L1 + L2 + L3) %>%  ggplot + 
+  geom_point(aes(x=truth,y=m_Y_0, col = 'CEF')) +
+  geom_point(aes(x=truth, y = Y, col = 'Actual')) +
+  geom_abline(aes(slope = 1,intercept=0)) + labs(x = 'E[Y|X]', y = 'Fit', title = 'Linear RA') +
+  scale_color_discrete(name = 'Type')
 
-# Compare FRA_theta with FRA_ATE estimates of average intent-to-treat effect
-FRA_theta(function(x) (x[1] - x[2]) , dat_with_FRA, c('Y_1', 'Y_0'))
+
+# Compare FRA_theta with FRA_ATE estimates of average effect
 FRA_ATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
-
-# Compare FRA_theta with FRA_ATE estimates of LATE
-FRA_theta(function(x) (x[1] - x[2]) / (x[3] - x[4]), dat_with_FRA, c('Y_1', 'Y_0', 'D_1', 'D_0'))
-FRA_LATE(dat_with_FRA, treat_lvl = 1, ctrl_lvl = 0)
-
-# ATE and LATE, but with linear RA
 FRA_ATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
-FRA_LATE(dat_with_LRA, treat_lvl = 1, ctrl_lvl = 0)
 #####
-
-
-all_dat %>% filter(year == 2013) %>% mutate(W=treatment!='control') %>% group_by(W) %>%
-  summarise(mean(has_cog_ao_y2))
 
