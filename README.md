@@ -1,5 +1,5 @@
 # FlexibleRA
-R Functions to Perform Flexible Regression Adjustment
+R and STATA Functions to Perform Flexible Regression Adjustment
 
 
 Contains the following functions and a simulation example
