@@ -22,8 +22,7 @@ Outputs:
 	
 	E[outcome(treatment)]. Mean of this column is the regression adjusted estimator for 	E[outcome(treatment)] and variance-covariance matrix of these columns is asymptotically valid 	estimator of covariance matrix of the regression adjusted point estimates
 	
-	
-
+\
 `fraate.ado`: Estimate Average Treatment Effect after Full Regression Adjustment Pre-processing
 
 Inputs:
@@ -40,7 +39,7 @@ Outputs:
 	Point estimate and standard error
 
 
-
+\
 `fraalate.ado`: Estimate Local Average Treatment Effect when Experiment Assignment W is Instrument for Treatment
 
 Inputs:
