@@ -2,8 +2,7 @@
 R and STATA Functions to Perform Flexible Regression Adjustment
 
 
-Contains the following functions and a simulation example
-
+R Code contains the following functions and a simulation example
 
 ```
 Perform Flexible Regression Adjustment Pre-Processing
@@ -55,3 +54,5 @@ Inputs:
 Output:
   Vector with point estimate and standard error
 ```
+
+STATA Package Found in foler titled STATA_FRA
