@@ -1,3 +1,5 @@
+# Description of Functions
+
 `fra.ado`: Perform Flexible Regression Adjustment Pre-Processing
 
 Inputs:
