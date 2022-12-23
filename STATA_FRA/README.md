@@ -10,10 +10,8 @@ Inputs:
 	
 	n_folds: number of folds for sample splitting
 	
-	method: regression method used for regression adjustment ("linear" or "rf") or custom ML model 	supplied by user. Custom ML model should be a function of the form: [function] `outcome' 	`covariates'. Output should be compatible with predict function. Please note if using "rf", package 	"rforest" must be installed prior to use.
+	method: regression method used for regression adjustment ("linear" or "rf") or custom ML model 	supplied by user. Custom ML model should be a function of the form: [function] `outcome' 	`covariates'. Output should be compatible with predict function. Please note if using "rf", package 	"rforest" must be installed prior to use.	
 	
-	
-
 Outputs:
 
 	Original data with new variables of the form - 
@@ -40,6 +38,7 @@ Inputs:
 Outputs:
 
 	Point estimate and standard error
+
 
 
 `fraalate.ado`: Estimate Local Average Treatment Effect when Experiment Assignment W is Instrument for Treatment
