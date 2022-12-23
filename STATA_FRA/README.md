@@ -11,7 +11,7 @@ After reopening the functions associated with each .ado file will be available f
 
 # Description of Functions
 
-`fra.ado`: Perform Flexible Regression Adjustment Pre-Processing
+## `fra.ado`: Perform Flexible Regression Adjustment Pre-Processing
 
 Inputs:
 
@@ -36,7 +36,7 @@ Outputs:
 	E[outcome(treatment)]. Mean of this column is the regression adjusted estimator for 	E[outcome(treatment)] and variance-covariance matrix of these columns is asymptotically valid 	estimator of covariance matrix of the regression adjusted point estimates
 	
 \
-`fraate.ado`: Estimate Average Treatment Effect after Full Regression Adjustment Pre-processing
+## `fraate.ado`: Estimate Average Treatment Effect after Full Regression Adjustment Pre-processing
 
 Inputs:
 
@@ -53,7 +53,7 @@ Outputs:
 
 
 \
-`fraalate.ado`: Estimate Local Average Treatment Effect when Experiment Assignment W is Instrument for Treatment
+## `fraalate.ado`: Estimate Local Average Treatment Effect when Experiment Assignment W is Instrument for Treatment
 
 Inputs:
 
